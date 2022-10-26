@@ -562,7 +562,9 @@ function WebGLState( gl, extensions, capabilities ) {
 		equationToGL[ MaxEquation ] = gl.MAX;
 
 	} else {
-
+    equationToGL[MinEquation] = 0x8007;
+    equationToGL[MaxEquation] = 0x8008;
+    /*
 		const extension = extensions.get( 'EXT_blend_minmax' );
 
 		if ( extension !== null ) {
@@ -571,7 +573,7 @@ function WebGLState( gl, extensions, capabilities ) {
 			equationToGL[ MaxEquation ] = extension.MAX_EXT;
 
 		}
-
+    */
 	}
 
 	const factorToGL = {

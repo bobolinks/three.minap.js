@@ -16040,12 +16040,15 @@
 			equationToGL[MinEquation] = gl.MIN;
 			equationToGL[MaxEquation] = gl.MAX;
 		} else {
-			const extension = extensions.get('EXT_blend_minmax');
-
-			if (extension !== null) {
-				equationToGL[MinEquation] = extension.MIN_EXT;
-				equationToGL[MaxEquation] = extension.MAX_EXT;
+			equationToGL[MinEquation] = 0x8007;
+			equationToGL[MaxEquation] = 0x8008;
+			/*
+			const extension = extensions.get( 'EXT_blend_minmax' );
+			if ( extension !== null ) {
+			equationToGL[ MinEquation ] = extension.MIN_EXT;
+			equationToGL[ MaxEquation ] = extension.MAX_EXT;
 			}
+			*/
 		}
 
 		const factorToGL = {
@@ -16517,7 +16520,6 @@
 		const maxTextureSize = capabilities.maxTextureSize;
 		const maxSamples = capabilities.maxSamples;
 		const multisampledRTTExt = extensions.has('WEBGL_multisampled_render_to_texture') ? extensions.get('WEBGL_multisampled_render_to_texture') : null;
-		const supportsInvalidateFramebuffer = /OculusBrowser/g.test(typeof navigator === 'undefined' ? '' : navigator.userAgent);
 
 		const _videoTextures = new WeakMap();
 
@@ -17720,10 +17722,6 @@
 					}
 
 					_gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, mask, _gl.NEAREST);
-
-					if (supportsInvalidateFramebuffer) {
-						_gl.invalidateFramebuffer(_gl.READ_FRAMEBUFFER, invalidationArray);
-					}
 				}
 
 				state.bindFramebuffer(_gl.READ_FRAMEBUFFER, null);
@@ -19616,15 +19614,12 @@
 			}; // OffscreenCanvas does not have setAttribute, see #22811
 
 			if ('setAttribute' in _canvas) _canvas.setAttribute('data-engine', `three.js r${REVISION}`); // event listeners must be registered before WebGL context is created, see #12753
-
-			_canvas.addEventListener('webglcontextlost', onContextLost, false);
-
-			_canvas.addEventListener('webglcontextrestored', onContextRestore, false);
-
-			_canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
+			// _canvas.addEventListener( 'webglcontextlost', onContextLost, false );
+			// _canvas.addEventListener( 'webglcontextrestored', onContextRestore, false );
+			// _canvas.addEventListener( 'webglcontextcreationerror', onContextCreationError, false );
 
 			if (_gl === null) {
-				const contextNames = ['webgl2', 'webgl', 'experimental-webgl'];
+				const contextNames = ['webgl', 'webgl2', 'experimental-webgl'];
 
 				if (_this.isWebGL1Renderer === true) {
 					contextNames.shift();
@@ -28449,7 +28444,7 @@
 	};
 
 	class LoadingManager {
-		constructor(onLoad, onProgress, onError) {
+		constructor(onLoad, onProgress, onError, createImage) {
 			const scope = this;
 			let isLoading = false;
 			let itemsLoaded = 0;
@@ -28462,6 +28457,7 @@
 			this.onLoad = onLoad;
 			this.onProgress = onProgress;
 			this.onError = onError;
+			this.createImage = createImage;
 
 			this.itemStart = function (url) {
 				itemsTotal++;
@@ -28592,6 +28588,92 @@
 
 	}
 
+	class Request {
+		constructor(url, options) {
+			this.url = url;
+			this.options = options;
+		}
+
+	}
+
+	class Headers {
+		constructor(options) {
+			this.options = options;
+		}
+
+	}
+
+	async function fetch$1(input, init) {
+		const options = input.options || {};
+		const header = options.headers || {};
+		const url = input.url || input;
+		const responseType = options.responseType;
+
+		if (/^wxfile:/.test(url)) {
+			return new Promise((resolve, reject) => {
+				try {
+					const fs = wx.getFileSystemManager();
+					const data = fs.readFileSync(url, !responseType || ['arraybuffer', 'bold'].includes(responseType) ? undefined : 'utf-8');
+					resolve({
+						url,
+						status: 200,
+						statusText: '200',
+						body: data,
+						headers: {},
+
+						arrayBuffer() {
+							return this.body;
+						},
+
+						json() {
+							return this.body;
+						},
+
+						text() {
+							return this.body;
+						}
+
+					});
+				} catch (e) {
+					reject(e);
+				}
+			});
+		}
+
+		return new Promise((resolve, reject) => {
+			wx.request({
+				url,
+				header,
+				responseType: !responseType || ['arraybuffer', 'bold'].includes(responseType) ? 'arraybuffer' : 'text',
+				success: res => {
+					resolve({
+						url,
+						status: res.statusCode,
+						statusText: `${res.statusCode}`,
+						body: res.data,
+						headers: res.header,
+
+						arrayBuffer() {
+							return this.body;
+						},
+
+						json() {
+							return this.body;
+						},
+
+						text() {
+							return this.body;
+						}
+
+					});
+				},
+				fail: err => {
+					reject(err);
+				}
+			});
+		});
+	}
+
 	const loading = {};
 
 	class HttpError extends Error {
@@ -28638,18 +28720,19 @@
 				onLoad: onLoad,
 				onProgress: onProgress,
 				onError: onError
-			}); // create request
-
-			const req = new Request(url, {
-				headers: new Headers(this.requestHeader),
-				credentials: this.withCredentials ? 'include' : 'same-origin' // An abort controller could be added within a future PR
-
 			}); // record states ( avoid data race )
 
 			const mimeType = this.mimeType;
-			const responseType = this.responseType; // start the fetch
+			const responseType = this.responseType; // create request
 
-			fetch(req).then(response => {
+			const req = new Request(url, {
+				headers: new Headers(this.requestHeader),
+				credentials: this.withCredentials ? 'include' : 'same-origin',
+				// An abort controller could be added within a future PR
+				responseType
+			}); // start the fetch
+
+			fetch$1(req).then(response => {
 				if (response.status === 200 || response.status === 0) {
 					// Some browsers return HTTP Status 0 when using non-http protocol
 					// e.g. 'file://' or 'data://'. Handle as success.
@@ -28929,9 +29012,10 @@
 					scope.manager.itemEnd(url);
 				}, 0);
 				return cached;
-			}
+			} // const image = createElementNS( 'img' );
 
-			const image = createElementNS('img');
+
+			const image = this.manager.createImage ? this.manager.createImage() : createElementNS('img');
 
 			function onImageLoad() {
 				removeEventListeners();

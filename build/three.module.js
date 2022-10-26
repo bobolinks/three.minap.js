@@ -21549,7 +21549,9 @@ function WebGLState( gl, extensions, capabilities ) {
 		equationToGL[ MaxEquation ] = 32776;
 
 	} else {
-
+    equationToGL[MinEquation] = 0x8007;
+    equationToGL[MaxEquation] = 0x8008;
+    /*
 		const extension = extensions.get( 'EXT_blend_minmax' );
 
 		if ( extension !== null ) {
@@ -21558,7 +21560,7 @@ function WebGLState( gl, extensions, capabilities ) {
 			equationToGL[ MaxEquation ] = extension.MAX_EXT;
 
 		}
-
+    */
 	}
 
 	const factorToGL = {
@@ -22255,7 +22257,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 	const maxTextureSize = capabilities.maxTextureSize;
 	const maxSamples = capabilities.maxSamples;
 	const multisampledRTTExt = extensions.has( 'WEBGL_multisampled_render_to_texture' ) ? extensions.get( 'WEBGL_multisampled_render_to_texture' ) : null;
-	const supportsInvalidateFramebuffer = /OculusBrowser/g.test( typeof navigator === 'undefined' ? '' : navigator.userAgent );
 
 	const _videoTextures = new WeakMap();
 	let _canvas;
@@ -23979,7 +23980,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 			const width = renderTarget.width;
 			const height = renderTarget.height;
 			let mask = 16384;
-			const invalidationArray = [];
 			const depthStyle = renderTarget.stencilBuffer ? 33306 : 36096;
 			const renderTargetProperties = properties.get( renderTarget );
 			const isMultipleRenderTargets = ( renderTarget.isWebGLMultipleRenderTargets === true );
@@ -24004,13 +24004,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 			for ( let i = 0; i < textures.length; i ++ ) {
 
-				invalidationArray.push( 36064 + i );
-
-				if ( renderTarget.depthBuffer ) {
-
-					invalidationArray.push( depthStyle );
-
-				}
+				if ( renderTarget.depthBuffer ) ;
 
 				const ignoreDepthValues = ( renderTargetProperties.__ignoreDepthValues !== undefined ) ? renderTargetProperties.__ignoreDepthValues : false;
 
@@ -24042,12 +24036,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 				}
 
 				_gl.blitFramebuffer( 0, 0, width, height, 0, 0, width, height, mask, 9728 );
-
-				if ( supportsInvalidateFramebuffer ) {
-
-					_gl.invalidateFramebuffer( 36008, invalidationArray );
-
-				}
 
 
 			}
@@ -26769,13 +26757,13 @@ function WebGLRenderer( parameters = {} ) {
 		if ( 'setAttribute' in _canvas ) _canvas.setAttribute( 'data-engine', `three.js r${REVISION}` );
 
 		// event listeners must be registered before WebGL context is created, see #12753
-		_canvas.addEventListener( 'webglcontextlost', onContextLost, false );
-		_canvas.addEventListener( 'webglcontextrestored', onContextRestore, false );
-		_canvas.addEventListener( 'webglcontextcreationerror', onContextCreationError, false );
+		// _canvas.addEventListener( 'webglcontextlost', onContextLost, false );
+		// _canvas.addEventListener( 'webglcontextrestored', onContextRestore, false );
+		// _canvas.addEventListener( 'webglcontextcreationerror', onContextCreationError, false );
 
 		if ( _gl === null ) {
 
-			const contextNames = [ 'webgl2', 'webgl', 'experimental-webgl' ];
+			const contextNames = [ 'webgl', 'webgl2', 'experimental-webgl' ];
 
 			if ( _this.isWebGL1Renderer === true ) {
 
@@ -39587,7 +39575,7 @@ const Cache = {
 
 class LoadingManager {
 
-	constructor( onLoad, onProgress, onError ) {
+	constructor( onLoad, onProgress, onError, createImage ) {
 
 		const scope = this;
 
@@ -39604,6 +39592,7 @@ class LoadingManager {
 		this.onLoad = onLoad;
 		this.onProgress = onProgress;
 		this.onError = onError;
+    this.createImage = createImage;
 
 		this.itemStart = function ( url ) {
 
@@ -39793,6 +39782,81 @@ class Loader {
 
 }
 
+class Request {
+  constructor(url, options) {
+    this.url = url;
+    this.options = options;
+  }
+}
+
+class Headers {
+  constructor(options) {
+    this.options = options;
+  }
+}
+
+async function fetch$1(input, init) {
+  const options = input.options || {};
+  const header = options.headers || {};
+  const url = input.url || input;
+  const responseType = options.responseType;
+  if (/^wxfile:/.test(url)) {
+    return new Promise((resolve, reject) => {
+      try {
+        const fs = wx.getFileSystemManager();
+        const data = fs.readFileSync(url, (!responseType || ['arraybuffer', 'bold'].includes(responseType)) ? undefined : 'utf-8');
+        resolve({
+          url,
+          status: 200,
+          statusText: '200',
+          body: data,
+          headers: {},
+          arrayBuffer() {
+            return this.body;
+          },
+          json() {
+            return this.body;
+          },
+          text() {
+            return this.body;
+          }
+        });
+      }
+      catch(e) {
+        reject(e);
+      }
+    });
+  }
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url,
+      header,
+      responseType: (!responseType || ['arraybuffer', 'bold'].includes(responseType)) ? 'arraybuffer' : 'text',
+      success: (res) => {
+        resolve({
+          url,
+          status: res.statusCode,
+          statusText: `${res.statusCode}`,
+          body: res.data,
+          headers: res.header,
+          arrayBuffer() {
+            return this.body;
+          },
+          json() {
+            return this.body;
+          },
+          text() {
+            return this.body;
+          }
+        });
+      },
+      fail: (err) => {
+        reject(err);
+      },
+    });
+  });
+}
+
 const loading = {};
 
 class HttpError extends Error {
@@ -39865,19 +39929,20 @@ class FileLoader extends Loader {
 			onError: onError,
 		} );
 
+    // record states ( avoid data race )
+		const mimeType = this.mimeType;
+		const responseType = this.responseType;
+
 		// create request
 		const req = new Request( url, {
 			headers: new Headers( this.requestHeader ),
 			credentials: this.withCredentials ? 'include' : 'same-origin',
 			// An abort controller could be added within a future PR
+      responseType,
 		} );
 
-		// record states ( avoid data race )
-		const mimeType = this.mimeType;
-		const responseType = this.responseType;
-
 		// start the fetch
-		fetch( req )
+		fetch$1( req )
 			.then( response => {
 
 				if ( response.status === 200 || response.status === 0 ) {
@@ -40290,7 +40355,8 @@ class ImageLoader extends Loader {
 
 		}
 
-		const image = createElementNS( 'img' );
+		// const image = createElementNS( 'img' );
+    const image = this.manager.createImage?this.manager.createImage() : createElementNS('img');
 
 		function onImageLoad() {
 

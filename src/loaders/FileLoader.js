@@ -1,5 +1,6 @@
 import { Cache } from './Cache.js';
 import { Loader } from './Loader.js';
+import { Request, Headers, fetch} from '../wxhack';
 
 const loading = {};
 
@@ -73,16 +74,17 @@ class FileLoader extends Loader {
 			onError: onError,
 		} );
 
+    // record states ( avoid data race )
+		const mimeType = this.mimeType;
+		const responseType = this.responseType;
+
 		// create request
 		const req = new Request( url, {
 			headers: new Headers( this.requestHeader ),
 			credentials: this.withCredentials ? 'include' : 'same-origin',
 			// An abort controller could be added within a future PR
+      responseType,
 		} );
-
-		// record states ( avoid data race )
-		const mimeType = this.mimeType;
-		const responseType = this.responseType;
 
 		// start the fetch
 		fetch( req )

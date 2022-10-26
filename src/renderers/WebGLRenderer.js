@@ -251,13 +251,13 @@ function WebGLRenderer( parameters = {} ) {
 		if ( 'setAttribute' in _canvas ) _canvas.setAttribute( 'data-engine', `three.js r${REVISION}` );
 
 		// event listeners must be registered before WebGL context is created, see #12753
-		_canvas.addEventListener( 'webglcontextlost', onContextLost, false );
-		_canvas.addEventListener( 'webglcontextrestored', onContextRestore, false );
-		_canvas.addEventListener( 'webglcontextcreationerror', onContextCreationError, false );
+		// _canvas.addEventListener( 'webglcontextlost', onContextLost, false );
+		// _canvas.addEventListener( 'webglcontextrestored', onContextRestore, false );
+		// _canvas.addEventListener( 'webglcontextcreationerror', onContextCreationError, false );
 
 		if ( _gl === null ) {
 
-			const contextNames = [ 'webgl2', 'webgl', 'experimental-webgl' ];
+			const contextNames = [ 'webgl', 'webgl2', 'experimental-webgl' ];
 
 			if ( _this.isWebGL1Renderer === true ) {
 

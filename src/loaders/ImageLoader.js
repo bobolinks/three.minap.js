@@ -36,7 +36,8 @@ class ImageLoader extends Loader {
 
 		}
 
-		const image = createElementNS( 'img' );
+		// const image = createElementNS( 'img' );
+    const image = this.manager.createImage?this.manager.createImage() : createElementNS('img');
 
 		function onImageLoad() {
 
