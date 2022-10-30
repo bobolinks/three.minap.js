@@ -31045,6 +31045,8 @@ class AudioLoader extends Loader {
 				const context = AudioContext.getContext();
 				context.decodeAudioData(bufferCopy, function (audioBuffer) {
 					onLoad(audioBuffer);
+				}, err => {
+					console.error('decodeAudioData fail', err);
 				});
 			} catch (e) {
 				if (onError) {
@@ -31274,7 +31276,12 @@ class AudioListener extends Object3D {
 	}
 
 	updateMatrixWorld(force) {
-		super.updateMatrixWorld(force);
+		super.updateMatrixWorld(force); // some unknown bugs under wx
+
+		if (wx) {
+			return;
+		}
+
 		const listener = this.context.listener;
 		const up = this.up;
 		this.timeDelta = this._clock.getDelta();
@@ -31638,7 +31645,12 @@ class PositionalAudio extends Audio {
 	}
 
 	updateMatrixWorld(force) {
-		super.updateMatrixWorld(force);
+		super.updateMatrixWorld(force); // some unknown bugs under wx
+
+		if (wx) {
+			return;
+		}
+
 		if (this.hasPlaybackControl === true && this.isPlaying === false) return;
 		this.matrixWorld.decompose(_position, _quaternion, _scale);
 

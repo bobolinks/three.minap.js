@@ -103,6 +103,11 @@ class PositionalAudio extends Audio {
 
 		super.updateMatrixWorld( force );
 
+    // some unknown bugs under wx
+    if (wx) {
+      return;
+    }
+
 		if ( this.hasPlaybackControl === true && this.isPlaying === false ) return;
 
 		this.matrixWorld.decompose( _position, _quaternion, _scale );

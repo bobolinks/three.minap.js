@@ -32,7 +32,9 @@ class AudioLoader extends Loader {
 
 					onLoad( audioBuffer );
 
-				} );
+				}, err => {
+          console.error('decodeAudioData fail', err)
+        } );
 
 			} catch ( e ) {
 

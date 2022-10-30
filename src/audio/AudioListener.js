@@ -98,7 +98,12 @@ class AudioListener extends Object3D {
 
 		super.updateMatrixWorld( force );
 
-		const listener = this.context.listener;
+    // some unknown bugs under wx
+    if (wx) {
+      return;
+    }
+
+    const listener = this.context.listener;
 		const up = this.up;
 
 		this.timeDelta = this._clock.getDelta();

@@ -43299,7 +43299,9 @@ class AudioLoader extends Loader {
 
 					onLoad( audioBuffer );
 
-				} );
+				}, err => {
+          console.error('decodeAudioData fail', err);
+        } );
 
 			} catch ( e ) {
 
@@ -43627,7 +43629,12 @@ class AudioListener extends Object3D {
 
 		super.updateMatrixWorld( force );
 
-		const listener = this.context.listener;
+    // some unknown bugs under wx
+    if (wx) {
+      return;
+    }
+
+    const listener = this.context.listener;
 		const up = this.up;
 
 		this.timeDelta = this._clock.getDelta();
@@ -44151,6 +44158,11 @@ class PositionalAudio extends Audio {
 	updateMatrixWorld( force ) {
 
 		super.updateMatrixWorld( force );
+
+    // some unknown bugs under wx
+    if (wx) {
+      return;
+    }
 
 		if ( this.hasPlaybackControl === true && this.isPlaying === false ) return;
 
