@@ -12527,7 +12527,11 @@ function WebGLAnimation() {
 
 		stop: function () {
 
-			context.cancelAnimationFrame( requestId );
+			if ( context ) {
+
+				context.cancelAnimationFrame( requestId );
+
+			}
 
 			isAnimating = false;
 
@@ -39929,7 +39933,7 @@ class FileLoader extends Loader {
 			onError: onError,
 		} );
 
-    // record states ( avoid data race )
+		// record states ( avoid data race )
 		const mimeType = this.mimeType;
 		const responseType = this.responseType;
 
@@ -39938,7 +39942,7 @@ class FileLoader extends Loader {
 			headers: new Headers( this.requestHeader ),
 			credentials: this.withCredentials ? 'include' : 'same-origin',
 			// An abort controller could be added within a future PR
-      responseType,
+			responseType,
 		} );
 
 		// start the fetch

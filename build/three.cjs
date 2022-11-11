@@ -9486,7 +9486,10 @@ function WebGLAnimation() {
 			isAnimating = true;
 		},
 		stop: function () {
-			context.cancelAnimationFrame(requestId);
+			if (context) {
+				context.cancelAnimationFrame(requestId);
+			}
+
 			isAnimating = false;
 		},
 		setAnimationLoop: function (callback) {
